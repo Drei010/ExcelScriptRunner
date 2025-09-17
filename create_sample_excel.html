@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Create Sample Excel</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+    <h1>Sample Excel File Generator</h1>
+    <button onclick="createExcel()">Generate Sample Excel File</button>
+    
+    <script>
+        function createExcel() {
+            // Sample data
+            const data = [
+                ['Name', 'Age', 'Department', 'Salary', 'Experience'],
+                ['John Doe', 28, 'Engineering', 75000, 3],
+                ['Jane Smith', 32, 'Marketing', 68000, 5],
+                ['Mike Johnson', 25, 'Engineering', 65000, 2],
+                ['Sarah Wilson', 29, 'Sales', 72000, 4],
+                ['David Brown', 35, 'Engineering', 85000, 8],
+                ['Lisa Davis', 27, 'Marketing', 62000, 3],
+                ['Tom Wilson', 31, 'Sales', 78000, 6],
+                ['Emily Chen', 26, 'Engineering', 70000, 2],
+                ['Robert Taylor', 33, 'Marketing', 74000, 7],
+                ['Amanda Garcia', 30, 'Sales', 71000, 5]
+            ];
+            
+            // Create workbook and worksheet
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.aoa_to_sheet(data);
+            XLSX.utils.book_append_sheet(wb, ws, 'Employees');
+            
+            // Generate and download
+            XLSX.writeFile(wb, 'sample_data.xlsx');
+        }
+    </script>
+</body>
+</html>
