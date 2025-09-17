@@ -1,0 +1,13 @@
+{
+  "files": {
+    "main.css": "/excelscript-runner/static/css/main.bcac8ca8.css",
+    "main.js": "/excelscript-runner/static/js/main.9d708ad3.js",
+    "index.html": "/excelscript-runner/index.html",
+    "main.bcac8ca8.css.map": "/excelscript-runner/static/css/main.bcac8ca8.css.map",
+    "main.9d708ad3.js.map": "/excelscript-runner/static/js/main.9d708ad3.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.bcac8ca8.css",
+    "static/js/main.9d708ad3.js"
+  ]
+}
