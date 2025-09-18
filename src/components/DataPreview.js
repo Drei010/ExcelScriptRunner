@@ -44,10 +44,12 @@ const DataPreview = ({ label, data, error, isLoading }) => {
           overflow: 'auto', 
           border: '1px solid #e1e8ed', 
           borderRadius: '8px',
-          maxHeight: '400px'
+          maxHeight: '400px',
+          maxWidth: '100%'
         }}>
           <table style={{ 
-            width: '100%', 
+            minWidth: '100%', 
+            width: 'max-content',
             borderCollapse: 'collapse',
             fontSize: '14px'
           }}>
@@ -59,7 +61,11 @@ const DataPreview = ({ label, data, error, isLoading }) => {
                     textAlign: 'left',
                     borderBottom: '2px solid #dee2e6',
                     fontWeight: '600',
-                    color: '#2c3e50'
+                    color: '#2c3e50',
+                    minWidth: '120px',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis'
                   }}>
                     {header || `Column ${index + 1}`}
                   </th>
@@ -76,8 +82,13 @@ const DataPreview = ({ label, data, error, isLoading }) => {
                     <td key={cellIndex} style={{ 
                       padding: '10px 8px',
                       borderRight: '1px solid #e1e8ed',
-                      color: '#495057'
-                    }}>
+                      color: '#495057',
+                      minWidth: '120px',
+                      maxWidth: '200px',
+                      wordWrap: 'break-word',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis'
+                    }} title={cell !== null && cell !== undefined ? String(cell) : ''}>
                       {cell !== null && cell !== undefined ? String(cell) : ''}
                     </td>
                   ))}
@@ -87,7 +98,7 @@ const DataPreview = ({ label, data, error, isLoading }) => {
           </table>
         </div>
         
-        {isPartial && (
+        {(isPartial || (displayData[0] && displayData[0].length > 10)) && (
           <div style={{ 
             marginTop: '10px', 
             padding: '10px',
@@ -97,7 +108,12 @@ const DataPreview = ({ label, data, error, isLoading }) => {
             color: '#856404',
             fontSize: '0.9em'
           }}>
-            ⚠️ This is a partial preview. The downloaded file will contain all {sheetData.length} rows.
+            {isPartial && `⚠️ This is a partial preview. The downloaded file will contain all ${sheetData.length} rows.`}
+            {displayData[0] && displayData[0].length > 10 && (
+              <div style={{ marginTop: isPartial ? '5px' : '0' }}>
+                📊 This table has {displayData[0].length} columns. Use horizontal scrolling to view all columns.
+              </div>
+            )}
           </div>
         )}
       </div>
