@@ -16,8 +16,10 @@ const DataPreview = ({ label, data, error, isLoading }) => {
     }
 
     const maxRows = 20;
+    const maxCols = 5;
     const displayData = sheetData.slice(0, maxRows);
     const isPartial = sheetData.length > maxRows;
+    const hasManyColumns = displayData[0] && displayData[0].length > maxCols;
 
     return (
       <div style={{ marginBottom: '30px' }}>
@@ -28,14 +30,15 @@ const DataPreview = ({ label, data, error, isLoading }) => {
           paddingBottom: '5px'
         }}>
           📊 Sheet: {sheetName}
-          {isPartial && (
+          {(isPartial || hasManyColumns) && (
             <span style={{ 
               fontSize: '0.8em', 
               color: '#7f8c8d', 
               fontWeight: 'normal',
               marginLeft: '10px'
             }}>
-              (Showing first {maxRows} rows of {sheetData.length} total)
+              {isPartial && `(Showing first ${maxRows} rows of ${sheetData.length} total)`}
+              {hasManyColumns && ` (Showing first ${maxCols} columns of ${displayData[0].length} total)`}
             </span>
           )}
         </h4>
@@ -48,14 +51,13 @@ const DataPreview = ({ label, data, error, isLoading }) => {
           maxWidth: '100%'
         }}>
           <table style={{ 
-            minWidth: '100%', 
-            width: 'max-content',
+            width: '100%', 
             borderCollapse: 'collapse',
             fontSize: '14px'
           }}>
             <thead>
               <tr style={{ backgroundColor: '#f8f9fa' }}>
-                {displayData[0] && displayData[0].map((header, index) => (
+                {displayData[0] && displayData[0].slice(0, maxCols).map((header, index) => (
                   <th key={index} style={{ 
                     padding: '12px 8px', 
                     textAlign: 'left',
@@ -78,7 +80,7 @@ const DataPreview = ({ label, data, error, isLoading }) => {
                   borderBottom: '1px solid #e1e8ed',
                   backgroundColor: rowIndex % 2 === 0 ? '#fff' : '#f8f9fa'
                 }}>
-                  {row.map((cell, cellIndex) => (
+                  {row.slice(0, maxCols).map((cell, cellIndex) => (
                     <td key={cellIndex} style={{ 
                       padding: '10px 8px',
                       borderRight: '1px solid #e1e8ed',
@@ -98,7 +100,7 @@ const DataPreview = ({ label, data, error, isLoading }) => {
           </table>
         </div>
         
-        {(isPartial || (displayData[0] && displayData[0].length > 10)) && (
+        {(isPartial || hasManyColumns) && (
           <div style={{ 
             marginTop: '10px', 
             padding: '10px',
@@ -109,9 +111,9 @@ const DataPreview = ({ label, data, error, isLoading }) => {
             fontSize: '0.9em'
           }}>
             {isPartial && `⚠️ This is a partial preview. The downloaded file will contain all ${sheetData.length} rows.`}
-            {displayData[0] && displayData[0].length > 10 && (
+            {hasManyColumns && (
               <div style={{ marginTop: isPartial ? '5px' : '0' }}>
-                📊 This table has {displayData[0].length} columns. Use horizontal scrolling to view all columns.
+                📊 This table has {displayData[0].length} columns. Only the first {maxCols} columns are shown in the preview. The downloaded file will contain all columns.
               </div>
             )}
           </div>
