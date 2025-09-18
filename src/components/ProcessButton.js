@@ -39,9 +39,6 @@ const ProcessButton = ({ selectedFile, script, onError, onSuccess, onProcessedDa
       
       const processedData = executeScript(parsedData, scriptToExecute);
       
-      console.log('Processed data:', processedData);
-      console.log('Processed data sheets:', processedData?.sheets);
-      
       setProgress('Complete!');
       onSuccess('File processed successfully! Check the preview below.');
       onProcessedData(processedData, selectedFile.name);
