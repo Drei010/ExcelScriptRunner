@@ -1,4 +1,4 @@
-# ExcelScript Runner
+npm# ExcelScript Runner
 
 ![ExcelScript Runner Screenshot](screenshot.png)
 
@@ -135,6 +135,22 @@ The application provides a rich set of built-in functions for data manipulation,
 -   `today()`: Returns today's date in `YYYY-MM-DD` format.
 -   `newDate()`: Creates a new `Date` object (compatible with Microsoft ExcelScript's `new Date()`).
 
+### Advanced ExcelScript Features
+-   `workbook.getWorksheet(name)`: Get a specific worksheet by name.
+-   `workbook.getActiveWorksheet()`: Get the currently active worksheet.
+-   `sheet.getRange(range).getValues()`: Get values from a range as a 2D array.
+-   `sheet.getRange(range).setValues(values)`: Set multiple values at once using a 2D array.
+-   `sheet.getRange(range).removeDuplicates(columns, hasHeaders)`: Remove duplicate rows based on specified columns.
+-   `sheet.getRange(range).autoFill(destinationRange, fillType)`: Auto-fill data patterns to a destination range.
+-   `sheet.getRange(range).clear(applyTo)`: Clear range contents, formats, or both.
+-   `sheet.getAutoFilter().getRange().getSort().apply(keys, matchCase, hasHeaders)`: Sort data using autofilter functionality.
+
+### ExcelScript Constants
+-   `ExcelScript.AutoFillType`: Constants for auto-fill operations (fillDefault, fillCopy, fillSeries, etc.).
+-   `ExcelScript.ClearApplyTo`: Constants for clear operations (all, contents, formats, hyperlinks).
+-   `ExcelScript.HorizontalAlignment`: Text alignment constants (general, left, center, right).
+-   `ExcelScript.DeleteShiftDirection`: Row/column deletion direction (up, left).
+
 ## Supported ExcelScript Syntax
 
 The application features an auto-conversion engine that allows you to write scripts using syntax very similar to Microsoft ExcelScript (Office Scripts). This includes:
@@ -142,10 +158,12 @@ The application features an auto-conversion engine that allows you to write scri
 -   **Function Signature**: `function main(workbook: ExcelScript.Workbook) { ... }`
 -   **Workbook/Worksheet Access**: `workbook.getActiveWorksheet()`, `selectedSheet` variables.
 -   **Range References**: `selectedSheet.getRange("A1")`, `selectedSheet.getRange("B:B")`.
--   **Range Methods**: `getTexts()`, `getValues()`, `setValue()`, `setNumberFormatLocal()`.
+-   **Range Methods**: `getTexts()`, `getValues()`, `setValue()`, `setValues()`, `setNumberFormatLocal()`.
+-   **Advanced Operations**: `removeDuplicates()`, `autoFill()`, `clear()`.
+-   **Sorting**: `getAutoFilter().getRange().getSort().apply()`.
 -   **Row/Column Manipulation**: `getEntireRow().delete()`.
 -   **Table Management**: `workbook.addTable()`, `newTable.setPredefinedTableStyle()`.
--   **Constants**: `ExcelScript.HorizontalAlignment`, `ExcelScript.DeleteShiftDirection`.
+-   **Constants**: `ExcelScript.HorizontalAlignment`, `ExcelScript.DeleteShiftDirection`, `ExcelScript.AutoFillType`, `ExcelScript.ClearApplyTo`.
 
 ### Example Microsoft ExcelScript (Auto-converted)
 
@@ -227,6 +245,176 @@ function main(workbook: ExcelScript.Workbook) {
     // Create table with the final range
     const newTable = workbook.addTable(selectedSheet.getRange(`A1:T${lastRow + 2}`), true);
     newTable.setPredefinedTableStyle("TableStyleLight1");
+}
+```
+
+### Large Script Support
+
+The application now supports complex ExcelScripts with multiple functions and advanced operations. Here's an example of a large script that demonstrates the full capabilities:
+
+```typescript
+function main(workbook: ExcelScript.Workbook) {
+    // Get worksheets with early exit if not found
+    const ticketExportSheet = workbook.getWorksheet("Ticket Export");
+    const ticketDetailsSheet = workbook.getWorksheet("Ticket Details");
+    
+    if (!ticketExportSheet || !ticketDetailsSheet) return;
+    
+    // Process Ticket Export sheet
+    processTicketExportSheet(ticketExportSheet);
+    
+    // Compare tickets between sheets
+    compareAndUpdateTickets(ticketExportSheet, ticketDetailsSheet);
+    
+    // Populate the rows of Ticket Details
+    populateTicketDetailsRows(ticketDetailsSheet);
+    
+    // Update internal status of Ticket Details
+    updateInternalStatusRows(ticketDetailsSheet);
+}
+
+function processTicketExportSheet(sheet: ExcelScript.Worksheet) {
+    const lastRowExportSheet = sheet.getRange("A1").getSurroundingRegion().getLastRow().getRowIndex();
+    
+    // Custom sort on range spanned by auto filter (descending on column S)
+    sheet.getAutoFilter().getRange().getSort().apply([{ key: 19, ascending: false }], false, true);
+    
+    // Remove duplicates from the entire data range (A2:T...)
+    sheet.getRange(`A2:T${lastRowExportSheet + 1}`).removeDuplicates([0], true);
+}
+
+function compareAndUpdateTickets(exportSheet: ExcelScript.Worksheet, detailsSheet: ExcelScript.Worksheet) {
+    const lastRowExportSheet = exportSheet.getRange("A1").getSurroundingRegion().getLastRow().getRowIndex() + 1;
+    const lastRowDetailsSheet = detailsSheet.getRange("C1").getSurroundingRegion().getLastRow().getRowIndex() + 2;
+    const exportTickets = getValidTickets(exportSheet, `A2:A${lastRowExportSheet}`);
+    const detailsTickets = getValidTickets(detailsSheet, `C3:C${lastRowDetailsSheet}`);
+    
+    if (exportTickets.length === 0) return;
+    
+    // Find missing tickets using Set for O(1) lookups
+    const detailsSet = new Set(detailsTickets);
+    const missingTickets = exportTickets.filter(ticket => !detailsSet.has(ticket));
+    
+    if (missingTickets.length === 0) return;
+    
+    // Calculate target range for adding missing tickets
+    const startRow = lastRowDetailsSheet;
+    const availableRows = 5000 - startRow; // Assuming worksheet has 5000 rows max
+    const ticketsToAdd = missingTickets.slice(0, availableRows);
+    
+    if (ticketsToAdd.length > 0) {
+        const targetRange = detailsSheet.getRange(`C${startRow}:C${startRow + ticketsToAdd.length - 1}`);
+        targetRange.setValues(ticketsToAdd.map(ticket => [ticket]));
+    }
+}
+
+function getValidTickets(sheet: ExcelScript.Worksheet, rangeAddress: string): string[] {
+    const values = sheet.getRange(rangeAddress).getValues();
+    return values
+        .filter(row => {
+            const value = row[0];
+            if (!value) return false;
+            const strValue = String(value).toUpperCase();
+            return strValue.startsWith("RIT") || strValue.startsWith("INC");
+        })
+        .map(row => String(row[0]));
+}
+
+function populateTicketDetailsRows(sheet: ExcelScript.Worksheet) {
+    const startRow = sheet.getRange("C1").getSurroundingRegion().getLastRow().getRowIndex() + 1;
+    const columnDValues = sheet.getRange(`A1:A${startRow}`).getValues();
+    const endRow = columnDValues.filter(row => row[0] !== "").length;
+    if (startRow == endRow) return;
+    
+    // Perform autofill for specified column ranges
+    autoFillRange(sheet, "A", "B", startRow, endRow);
+    autoFillRange(sheet, "D", "L", startRow, endRow);
+    autoFillRange(sheet, "U", "AA", startRow, endRow);
+    autoFillRange(sheet, "AD", "AD", startRow, endRow);
+    autoFillRange(sheet, "AF", "AH", startRow, endRow);
+    autoFillRange(sheet, "AJ", "AM", startRow, endRow);
+    autoFillRange(sheet, "AP", "AP", startRow, endRow);
+    
+    // Copy values from Z to AB where AB is empty
+    copyZtoABIfEmpty(sheet, startRow, endRow);
+}
+
+function autoFillRange(sheet: ExcelScript.Worksheet, startCol: string, endCol: string, startRow: number, endRow: number) {
+    const rangeToAutoFill = sheet.getRange(`${startCol}${endRow}:${endCol}${endRow}`);
+    const fillToRange = sheet.getRange(`${startCol}${endRow}:${endCol}${endRow + (startRow - endRow)}`);
+    rangeToAutoFill.autoFill(fillToRange, ExcelScript.AutoFillType.fillDefault);
+}
+
+function copyZtoABIfEmpty(sheet: ExcelScript.Worksheet, startRow: number, endRow: number) {
+    // Get the range for columns Z and AB for the specified rows
+    const zRange = sheet.getRange(`Z${startRow}:Z${endRow}`);
+    const abRange = sheet.getRange(`AB${startRow}:AB${endRow}`);
+    
+    // Get the values from the ranges
+    const zValues = zRange.getValues();
+    const abValues = abRange.getValues();
+    
+    // Loop through the values and update column AB if it's empty
+    for (let i = 0; i < zValues.length; i++) {
+        if (!abValues[i][0]) {
+            abValues[i][0] = zValues[i][0];
+        }
+    }
+    abRange.setValues(abValues);
+}
+
+function updateInternalStatusRows(sheet: ExcelScript.Worksheet) {
+    const endRow = sheet.getRange("C1").getSurroundingRegion().getLastRow().getRowIndex();
+    
+    // Define the range for processing (last 1000 rows)
+    const startRow = Math.max(1, endRow - 2000); // Ensure startRow doesn't go below 1
+    const rowCount = endRow - startRow + 1;
+    
+    // Define status mapping
+    const statusMap: Record<string, string> = {
+        "Closed Complete": "Closed",
+        "Closed": "Closed",
+        "Closed Incomplete": "Closed",
+        "Closed Skipped": "Closed",
+        "Resolved": "Closed",
+        "Pending": "On Hold",
+        "On Hold": "On Hold",
+        "Cancelled": "Cancelled",
+        "In Progress": "In Progress",
+        "Work in Progress": "In Progress"
+    };
+    
+    // Read column L, N, M, and O values in bulk
+    const columnLValues = sheet.getRange(`L${startRow}:L${endRow}`).getValues() as string[][];
+    const columnNValues = sheet.getRange(`N${startRow}:N${endRow}`).getValues() as string[][];
+    const columnMValues = sheet.getRange(`M${startRow}:M${endRow}`).getValues() as string[][];
+    const columnOValues = sheet.getRange(`O${startRow}:O${endRow}`).getValues() as string[][];
+    
+    // Process and update values for columns M, N, and O
+    for (let i = 0; i < rowCount; i++) {
+        const lValue = columnLValues[i][0];
+        const nValue = columnNValues[i][0];
+        const resolvedValue = "Resolved";
+        
+        // Skip rows where column N is not blank, keep the existing value in column M
+        if (nValue.trim() !== "") {
+            continue; // Skip this row
+        } else {
+            // If column N is blank, map the status from column L to column M
+            columnMValues[i][0] = statusMap[lValue] || ""; // Update column M with mapped value
+        }
+        
+        // Additional condition: If M is "Closed" and N is blank, insert "Resolved" into N and O
+        if ((columnMValues[i][0] === "Closed" || columnMValues[i][0] === "Cancelled") && nValue.trim() === "") {
+            columnNValues[i][0] = resolvedValue;
+            columnOValues[i][0] = resolvedValue;
+        }
+    }
+    
+    // Write the updated column M, N, and O values back in bulk
+    sheet.getRange(`M${startRow}:M${endRow}`).setValues(columnMValues);
+    sheet.getRange(`N${startRow}:N${endRow}`).setValues(columnNValues);
+    sheet.getRange(`O${startRow}:O${endRow}`).setValues(columnOValues);
 }
 ```
 
