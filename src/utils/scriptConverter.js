@@ -20,7 +20,13 @@ export const convertExcelScript = (excelScript) => {
   // Convert workbook.getActiveWorksheet() to getSheetNames()[0]
   convertedScript = convertedScript.replace(
     /workbook\.getActiveWorksheet\(\)/g,
-    'getActiveWorksheet()'
+    'workbook.getActiveWorksheet()'
+  );
+  
+  // Convert workbook.getWorksheet() calls
+  convertedScript = convertedScript.replace(
+    /workbook\.getWorksheet\(([^)]+)\)/g,
+    'workbook.getWorksheet($1)'
   );
   
   // Convert selectedSheet to activeSheet
@@ -76,6 +82,36 @@ export const convertExcelScript = (excelScript) => {
   convertedScript = convertedScript.replace(
     /if\s*\(\s*activeSheet\.getAutoFilter\(\)\s*!==\s*null\s*\)\s*{[\s\S]*?activeSheet\.getAutoFilter\(\)\.remove\(\);[\s\S]*?}/g,
     'removeAutoFilter()'
+  );
+  
+  // Convert setValues operations
+  convertedScript = convertedScript.replace(
+    /(\w+)\.getRange\(([^)]+)\)\.setValues\(([^)]+)\)/g,
+    '$1.getRange($2).setValues($3)'
+  );
+  
+  // Convert removeDuplicates operations
+  convertedScript = convertedScript.replace(
+    /(\w+)\.getRange\(([^)]+)\)\.removeDuplicates\(([^)]+)\)/g,
+    '$1.getRange($2).removeDuplicates($3)'
+  );
+  
+  // Convert autoFill operations
+  convertedScript = convertedScript.replace(
+    /(\w+)\.getRange\(([^)]+)\)\.autoFill\(([^)]+)\)/g,
+    '$1.getRange($2).autoFill($3)'
+  );
+  
+  // Convert clear operations
+  convertedScript = convertedScript.replace(
+    /(\w+)\.getRange\(([^)]+)\)\.clear\(([^)]+)\)/g,
+    '$1.getRange($2).clear($3)'
+  );
+  
+  // Convert sort operations
+  convertedScript = convertedScript.replace(
+    /(\w+)\.getAutoFilter\(\)\.getRange\(\)\.getSort\(\)\.apply\(([^)]+)\)/g,
+    '$1.getAutoFilter().getRange().getSort().apply($2)'
   );
   
   // Add helper functions at the beginning

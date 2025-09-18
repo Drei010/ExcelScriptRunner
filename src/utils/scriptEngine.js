@@ -58,6 +58,321 @@ const columnToIndex = (column) => {
 };
 
 /**
+ * Convert column index to Excel letter (0=A, 1=B, etc.)
+ * @param {number} index - Column index
+ * @returns {string} - Column letter(s)
+ */
+const indexToColumn = (index) => {
+  let result = '';
+  while (index >= 0) {
+    result = String.fromCharCode(65 + (index % 26)) + result;
+    index = Math.floor(index / 26) - 1;
+  }
+  return result;
+};
+
+/**
+ * Create a worksheet object with all ExcelScript methods
+ * @param {Object} context - Execution context
+ * @param {string} sheetName - Name of the sheet
+ * @returns {Object} - Worksheet object
+ */
+const createWorksheetObject = (context, sheetName) => {
+  const sheet = context.sheets[sheetName] || [];
+  
+  return {
+    name: sheetName,
+    getUsedRange: () => ({
+      getRowCount: () => sheet.length,
+      getColumnCount: () => sheet.length > 0 ? sheet[0].length : 0,
+      getFormat: () => ({
+        setHorizontalAlignment: (alignment) => {},
+        setIndentLevel: (level) => {},
+        setWrapText: (wrap) => {},
+        setTextOrientation: (orientation) => {}
+      })
+    }),
+    getRange: (range) => {
+      const rangeData = parseRange(range, sheet);
+      const rangeInfo = parseRangeInfo(range);
+      
+      return {
+        getTexts: () => rangeData.map(row => row.map(cell => String(cell || ''))),
+        getValues: () => rangeData,
+        setValue: (value) => {
+          if (rangeInfo.isSingleCell) {
+            setCellValue(context, sheetName, rangeInfo.startRow, rangeInfo.startCol, value);
+          }
+        },
+        setValues: (values) => {
+          if (Array.isArray(values)) {
+            setRangeValues(context, sheetName, rangeInfo, values);
+          }
+        },
+        setNumberFormatLocal: (format) => {},
+        getEntireRow: () => ({
+          delete: (direction) => {
+            if (rangeInfo.isSingleCell) {
+              deleteRow(context, sheetName, rangeInfo.startRow);
+            }
+          }
+        }),
+        getSurroundingRegion: () => ({
+          getLastRow: () => ({
+            getRowIndex: () => sheet.length
+          })
+        }),
+        removeDuplicates: (columns, hasHeaders) => {
+          removeDuplicatesFromRange(context, sheetName, rangeInfo, columns, hasHeaders);
+        },
+        autoFill: (destinationRange, fillType) => {
+          const destInfo = parseRangeInfo(destinationRange);
+          autoFillRange(context, sheetName, rangeInfo, destInfo, fillType);
+        },
+        clear: (applyTo) => {
+          clearRange(context, sheetName, rangeInfo, applyTo);
+        }
+      };
+    },
+    getAutoFilter: () => ({
+      getRange: () => ({
+        getSort: () => ({
+          apply: (key, matchCase, hasHeaders) => {
+            sortRange(context, sheetName, key, matchCase, hasHeaders);
+          }
+        })
+      }),
+      remove: () => {}
+    }),
+    addTable: (range, hasHeaders) => ({
+      setPredefinedTableStyle: (style) => {}
+    })
+  };
+};
+
+/**
+ * Parse range information for advanced operations
+ * @param {string} range - Excel range notation
+ * @returns {Object} - Range information
+ */
+const parseRangeInfo = (range) => {
+  if (!range) return { isSingleCell: false };
+  
+  // Handle single cell ranges like "A1"
+  if (/^[A-Z]+\d+$/.test(range)) {
+    const match = range.match(/^([A-Z]+)(\d+)$/);
+    if (match) {
+      return {
+        isSingleCell: true,
+        startRow: parseInt(match[2]) - 1,
+        endRow: parseInt(match[2]) - 1,
+        startCol: columnToIndex(match[1]),
+        endCol: columnToIndex(match[1])
+      };
+    }
+  }
+  
+  // Handle column ranges like "A1:A10"
+  if (/^[A-Z]+\d+:[A-Z]+\d+$/.test(range)) {
+    const [start, end] = range.split(':');
+    const startMatch = start.match(/^([A-Z]+)(\d+)$/);
+    const endMatch = end.match(/^([A-Z]+)(\d+)$/);
+    
+    if (startMatch && endMatch) {
+      return {
+        isSingleCell: false,
+        startRow: parseInt(startMatch[2]) - 1,
+        endRow: parseInt(endMatch[2]) - 1,
+        startCol: columnToIndex(startMatch[1]),
+        endCol: columnToIndex(endMatch[1])
+      };
+    }
+  }
+  
+  return { isSingleCell: false };
+};
+
+/**
+ * Set cell value in context
+ * @param {Object} context - Execution context
+ * @param {string} sheetName - Sheet name
+ * @param {number} row - Row index
+ * @param {number} col - Column index
+ * @param {*} value - Value to set
+ */
+const setCellValue = (context, sheetName, row, col, value) => {
+  if (!context.sheets[sheetName]) {
+    context.sheets[sheetName] = [];
+  }
+  if (!context.sheets[sheetName][row]) {
+    context.sheets[sheetName][row] = [];
+  }
+  context.sheets[sheetName][row][col] = value;
+};
+
+/**
+ * Set range values in context
+ * @param {Object} context - Execution context
+ * @param {string} sheetName - Sheet name
+ * @param {Object} rangeInfo - Range information
+ * @param {Array} values - Values to set
+ */
+const setRangeValues = (context, sheetName, rangeInfo, values) => {
+  if (!context.sheets[sheetName]) {
+    context.sheets[sheetName] = [];
+  }
+  
+  values.forEach((row, rowIndex) => {
+    const actualRow = rangeInfo.startRow + rowIndex;
+    if (!context.sheets[sheetName][actualRow]) {
+      context.sheets[sheetName][actualRow] = [];
+    }
+    
+    if (Array.isArray(row)) {
+      row.forEach((cell, colIndex) => {
+        const actualCol = rangeInfo.startCol + colIndex;
+        context.sheets[sheetName][actualRow][actualCol] = cell;
+      });
+    } else {
+      context.sheets[sheetName][actualRow][rangeInfo.startCol] = row;
+    }
+  });
+};
+
+/**
+ * Delete row from context
+ * @param {Object} context - Execution context
+ * @param {string} sheetName - Sheet name
+ * @param {number} rowIndex - Row index to delete
+ */
+const deleteRow = (context, sheetName, rowIndex) => {
+  if (context.sheets[sheetName] && context.sheets[sheetName][rowIndex]) {
+    context.sheets[sheetName].splice(rowIndex, 1);
+  }
+};
+
+/**
+ * Remove duplicates from range
+ * @param {Object} context - Execution context
+ * @param {string} sheetName - Sheet name
+ * @param {Object} rangeInfo - Range information
+ * @param {Array} columns - Columns to check for duplicates
+ * @param {boolean} hasHeaders - Whether range has headers
+ */
+const removeDuplicatesFromRange = (context, sheetName, rangeInfo, columns, hasHeaders) => {
+  const sheet = context.sheets[sheetName];
+  if (!sheet) return;
+  
+  const startRow = hasHeaders ? rangeInfo.startRow + 1 : rangeInfo.startRow;
+  const endRow = rangeInfo.endRow;
+  
+  // Simple duplicate removal based on first column
+  const seen = new Set();
+  const newRows = [];
+  
+  for (let i = 0; i < sheet.length; i++) {
+    if (i < startRow || i > endRow) {
+      newRows.push(sheet[i]);
+      continue;
+    }
+    
+    const key = String(sheet[i][rangeInfo.startCol] || '');
+    if (!seen.has(key)) {
+      seen.add(key);
+      newRows.push(sheet[i]);
+    }
+  }
+  
+  context.sheets[sheetName] = newRows;
+};
+
+/**
+ * Auto fill range
+ * @param {Object} context - Execution context
+ * @param {string} sheetName - Sheet name
+ * @param {Object} sourceInfo - Source range info
+ * @param {Object} destInfo - Destination range info
+ * @param {string} fillType - Fill type
+ */
+const autoFillRange = (context, sheetName, sourceInfo, destInfo, fillType) => {
+  const sheet = context.sheets[sheetName];
+  if (!sheet) return;
+  
+  // Simple copy fill for now
+  for (let row = destInfo.startRow; row <= destInfo.endRow; row++) {
+    if (!sheet[row]) sheet[row] = [];
+    for (let col = destInfo.startCol; col <= destInfo.endCol; col++) {
+      const sourceRow = sourceInfo.startRow + (row - destInfo.startRow) % (sourceInfo.endRow - sourceInfo.startRow + 1);
+      const sourceCol = sourceInfo.startCol + (col - destInfo.startCol) % (sourceInfo.endCol - sourceInfo.startCol + 1);
+      if (sheet[sourceRow] && sheet[sourceRow][sourceCol] !== undefined) {
+        sheet[row][col] = sheet[sourceRow][sourceCol];
+      }
+    }
+  }
+};
+
+/**
+ * Clear range
+ * @param {Object} context - Execution context
+ * @param {string} sheetName - Sheet name
+ * @param {Object} rangeInfo - Range information
+ * @param {string} applyTo - What to clear
+ */
+const clearRange = (context, sheetName, rangeInfo, applyTo) => {
+  const sheet = context.sheets[sheetName];
+  if (!sheet) return;
+  
+  for (let row = rangeInfo.startRow; row <= rangeInfo.endRow; row++) {
+    if (sheet[row]) {
+      for (let col = rangeInfo.startCol; col <= rangeInfo.endCol; col++) {
+        if (applyTo === 'contents' || applyTo === 'all') {
+          sheet[row][col] = '';
+        }
+      }
+    }
+  }
+};
+
+/**
+ * Sort range
+ * @param {Object} context - Execution context
+ * @param {string} sheetName - Sheet name
+ * @param {Array} keys - Sort keys
+ * @param {boolean} matchCase - Match case
+ * @param {boolean} hasHeaders - Has headers
+ */
+const sortRange = (context, sheetName, keys, matchCase, hasHeaders) => {
+  const sheet = context.sheets[sheetName];
+  if (!sheet || sheet.length <= 1) return;
+  
+  const startRow = hasHeaders ? 1 : 0;
+  const dataRows = sheet.slice(startRow);
+  
+  dataRows.sort((a, b) => {
+    for (const key of keys) {
+      const colIndex = key.key || key;
+      const aVal = a[colIndex] || '';
+      const bVal = b[colIndex] || '';
+      
+      let comparison = 0;
+      if (typeof aVal === 'string' && typeof bVal === 'string') {
+        comparison = matchCase ? aVal.localeCompare(bVal) : aVal.toLowerCase().localeCompare(bVal.toLowerCase());
+      } else {
+        comparison = aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
+      }
+      
+      if (comparison !== 0) {
+        return key.ascending !== false ? comparison : -comparison;
+      }
+    }
+    return 0;
+  });
+  
+  // Replace the data rows
+  sheet.splice(startRow, dataRows.length, ...dataRows);
+};
+
+/**
  * Execute ExcelScript on parsed data
  * @param {Object} data - Parsed Excel/CSV data
  * @param {string} script - ExcelScript code
@@ -76,59 +391,13 @@ export const executeScript = (data, script) => {
       
       // ExcelScript-like workbook object
       workbook: {
-        getActiveWorksheet: () => ({
-          name: data.sheetNames[0] || 'Sheet1',
-          getUsedRange: () => ({
-            getRowCount: () => {
-              const sheet = context.sheets[data.sheetNames[0]] || [];
-              return sheet.length;
-            },
-            getColumnCount: () => {
-              const sheet = context.sheets[data.sheetNames[0]] || [];
-              return sheet.length > 0 ? sheet[0].length : 0;
-            },
-            getFormat: () => ({
-              setHorizontalAlignment: (alignment) => {},
-              setIndentLevel: (level) => {},
-              setWrapText: (wrap) => {},
-              setTextOrientation: (orientation) => {}
-            })
-          }),
-          getRange: (range) => ({
-            getTexts: () => {
-              const sheet = context.sheets[data.sheetNames[0]] || [];
-              const rangeData = parseRange(range, sheet);
-              return rangeData.map(row => row.map(cell => String(cell || '')));
-            },
-            getValues: () => {
-              const sheet = context.sheets[data.sheetNames[0]] || [];
-              return parseRange(range, sheet);
-            },
-            setValue: (value) => {
-              const sheet = context.sheets[data.sheetNames[0]] || [];
-              const rangeData = parseRange(range, sheet);
-              // Implementation for setting values
-            },
-            setNumberFormatLocal: (format) => {},
-            getEntireRow: () => ({
-              delete: (direction) => {
-                // Implementation for row deletion
-              }
-            }),
-            getSurroundingRegion: () => ({
-              getLastRow: () => ({
-                getRowIndex: () => {
-                  const sheet = context.sheets[data.sheetNames[0]] || [];
-                  return sheet.length;
-                }
-              })
-            })
-          }),
-          getAutoFilter: () => null,
-          addTable: (range, hasHeaders) => ({
-            setPredefinedTableStyle: (style) => {}
-          })
-        }),
+        getActiveWorksheet: () => createWorksheetObject(context, data.sheetNames[0] || 'Sheet1'),
+        getWorksheet: (name) => {
+          if (context.sheets[name]) {
+            return createWorksheetObject(context, name);
+          }
+          return null;
+        },
         addTable: (range, hasHeaders) => ({
           setPredefinedTableStyle: (style) => {}
         })
@@ -234,6 +503,26 @@ export const executeScript = (data, script) => {
       DeleteShiftDirection: {
         up: 'up',
         left: 'left'
+      },
+      AutoFillType: {
+        fillDefault: 'fillDefault',
+        fillCopy: 'fillCopy',
+        fillSeries: 'fillSeries',
+        fillFormats: 'fillFormats',
+        fillValues: 'fillValues',
+        fillDays: 'fillDays',
+        fillWeekdays: 'fillWeekdays',
+        fillMonths: 'fillMonths',
+        fillYears: 'fillYears',
+        fillLinearTrend: 'fillLinearTrend',
+        fillGrowthTrend: 'fillGrowthTrend',
+        fillFlashFill: 'fillFlashFill'
+      },
+      ClearApplyTo: {
+        all: 'all',
+        contents: 'contents',
+        formats: 'formats',
+        hyperlinks: 'hyperlinks'
       }
     };
     
