@@ -3,7 +3,7 @@ import { parseFile } from '../utils/excelParser';
 import { executeScript } from '../utils/scriptEngine';
 import { convertExcelScript, isExcelScript } from '../utils/scriptConverter';
 
-const ProcessButton = ({ selectedFile, script, onError, onSuccess, onProcessedData }) => {
+const ProcessButton = ({ selectedFile, script, onError, onSuccess, onProcessedData, onProcessingStart }) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState('');
 
@@ -20,6 +20,7 @@ const ProcessButton = ({ selectedFile, script, onError, onSuccess, onProcessedDa
 
     setIsProcessing(true);
     setProgress('Reading file...');
+    onProcessingStart && onProcessingStart();
 
     try {
       // Parse the uploaded file
@@ -37,6 +38,9 @@ const ProcessButton = ({ selectedFile, script, onError, onSuccess, onProcessedDa
       }
       
       const processedData = executeScript(parsedData, scriptToExecute);
+      
+      console.log('Processed data:', processedData);
+      console.log('Processed data sheets:', processedData?.sheets);
       
       setProgress('Complete!');
       onSuccess('File processed successfully! Check the preview below.');

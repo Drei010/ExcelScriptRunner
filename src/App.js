@@ -16,6 +16,7 @@ function App() {
   const [processedData, setProcessedData] = useState(null);
   const [processedFileName, setProcessedFileName] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isScriptProcessing, setIsScriptProcessing] = useState(false);
 
   const handleFileSelect = async (file, errorMessage) => {
     setSelectedFile(file);
@@ -54,16 +55,24 @@ function App() {
     setSuccess('');
     setProcessedData(null);
     setProcessedFileName('');
+    setIsScriptProcessing(false);
   };
 
   const handleSuccess = (successMessage) => {
     setSuccess(successMessage);
     setError('');
+    setIsScriptProcessing(false);
   };
 
   const handleProcessedData = (data, fileName) => {
     setProcessedData(data);
     setProcessedFileName(fileName);
+  };
+
+  const handleScriptProcessingStart = () => {
+    setIsScriptProcessing(true);
+    setError('');
+    setSuccess('');
   };
 
   return (
@@ -105,6 +114,7 @@ function App() {
         onError={handleError}
         onSuccess={handleSuccess}
         onProcessedData={handleProcessedData}
+        onProcessingStart={handleScriptProcessingStart}
       />
 
       <div className="results-container">
@@ -117,8 +127,8 @@ function App() {
         <DataPreview
           label="After Processing"
           data={processedData}
-          error={error && processedData == null ? error : null}
-          isLoading={isProcessing && !!processedData}
+          error={error && !processedData ? error : null}
+          isLoading={isScriptProcessing}
         />
       </div>
 

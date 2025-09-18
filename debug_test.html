@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ExcelScript Runner Debug Test</title>
+</head>
+<body>
+    <h1>ExcelScript Runner Debug Test</h1>
+    
+    <div>
+        <h2>Test 1: Simple Script Execution</h2>
+        <button onclick="testSimpleScript()">Test Simple Script</button>
+        <div id="test1-result"></div>
+    </div>
+    
+    <div>
+        <h2>Test 2: ExcelScript Syntax</h2>
+        <button onclick="testExcelScript()">Test ExcelScript</button>
+        <div id="test2-result"></div>
+    </div>
+    
+    <div>
+        <h2>Test 3: Data Flow</h2>
+        <button onclick="testDataFlow()">Test Data Flow</button>
+        <div id="test3-result"></div>
+    </div>
+
+    <script type="module">
+        // Import the modules (we'll need to adjust this for browser testing)
+        import { executeScript } from './src/utils/scriptEngine.js';
+        import { convertExcelScript, isExcelScript } from './src/utils/scriptConverter.js';
+        
+        // Test data
+        const testData = {
+            sheetNames: ['Sheet1'],
+            sheets: {
+                'Sheet1': [
+                    ['Name', 'Age', 'City'],
+                    ['John', 25, 'New York'],
+                    ['Jane', 30, 'Los Angeles'],
+                    ['Bob', 35, 'Chicago']
+                ]
+            }
+        };
+        
+        window.testSimpleScript = function() {
+            try {
+                const script = `
+                    console.log('Simple script test');
+                    setCell('Sheet1', 1, 3, 'Test Value');
+                `;
+                
+                const result = executeScript(testData, script);
+                document.getElementById('test1-result').innerHTML = 
+                    '<pre>' + JSON.stringify(result, null, 2) + '</pre>';
+            } catch (error) {
+                document.getElementById('test1-result').innerHTML = 
+                    '<div style="color: red;">Error: ' + error.message + '</div>';
+            }
+        };
+        
+        window.testExcelScript = function() {
+            try {
+                const excelScript = `
+                    function main(workbook: ExcelScript.Workbook) {
+                        const selectedSheet = workbook.getActiveWorksheet();
+                        const usedRange = selectedSheet.getUsedRange();
+                        console.log('Row count:', usedRange.getRowCount());
+                    }
+                `;
+                
+                const isExcel = isExcelScript(excelScript);
+                const converted = convertExcelScript(excelScript);
+                
+                document.getElementById('test2-result').innerHTML = 
+                    '<div>Is ExcelScript: ' + isExcel + '</div>' +
+                    '<div>Converted:</div>' +
+                    '<pre>' + converted + '</pre>';
+            } catch (error) {
+                document.getElementById('test2-result').innerHTML = 
+                    '<div style="color: red;">Error: ' + error.message + '</div>';
+            }
+        };
+        
+        window.testDataFlow = function() {
+            try {
+                const script = `
+                    console.log('Data flow test');
+                    const sheetData = getSheetData('Sheet1');
+                    console.log('Sheet data:', sheetData);
+                    setCell('Sheet1', 1, 3, 'Processed');
+                `;
+                
+                const result = executeScript(testData, script);
+                document.getElementById('test3-result').innerHTML = 
+                    '<div>Original data:</div>' +
+                    '<pre>' + JSON.stringify(testData, null, 2) + '</pre>' +
+                    '<div>Processed data:</div>' +
+                    '<pre>' + JSON.stringify(result, null, 2) + '</pre>';
+            } catch (error) {
+                document.getElementById('test3-result').innerHTML = 
+                    '<div style="color: red;">Error: ' + error.message + '</div>';
+            }
+        };
+    </script>
+</body>
+</html>

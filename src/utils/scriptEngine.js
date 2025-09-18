@@ -68,8 +68,8 @@ export const executeScript = (data, script) => {
     // Create a safe execution context
     const context = {
       data: JSON.parse(JSON.stringify(data)), // Deep clone
-      sheets: data.sheets,
-      sheetNames: data.sheetNames,
+      sheets: JSON.parse(JSON.stringify(data.sheets)), // Deep clone sheets too
+      sheetNames: [...data.sheetNames], // Clone array
       console: {
         log: (...args) => console.log('[ExcelScript]', ...args)
       },
@@ -249,6 +249,10 @@ export const executeScript = (data, script) => {
     `);
     
     scriptFunction(context);
+    
+    // Update the data object with the modified sheets
+    context.data.sheets = context.sheets;
+    context.data.sheetNames = context.sheetNames;
     
     return context.data;
   } catch (error) {

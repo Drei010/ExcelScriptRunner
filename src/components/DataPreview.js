@@ -1,6 +1,7 @@
 import React from 'react';
 
 const DataPreview = ({ label, data, error, isLoading }) => {
+  console.log(`DataPreview ${label}:`, { data, error, isLoading });
   const renderTable = (sheetName, sheetData) => {
     if (!sheetData || sheetData.length === 0) {
       return (
